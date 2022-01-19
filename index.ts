@@ -43,22 +43,19 @@ type ScaleMode =
 interface ScaleConfig {
   key: ScaleMode;
   name: string;
-  steps: ScaleStep[];
+  steps: NoteStep[];
   triads: ScaleIntervalTypeID[];
 }
 
 type ScaleModeVanity = "major" | "minor";
 
-type ScaleIntervalType = "Augmented" | "Diminished" | "Major" | "Minor";
-
 type ScaleIntervalTypeID = "aug" | "dim" | "maj" | "min";
 
 type ScaleRoot = NoteNotation | Exclude<NoteNotationAlternate, undefined>;
 
-type ScaleStep = 1 | 2 | 3;
+const NOTES_CLOSEST_MEMO: { [k: string]: NoteID } = {};
 
 class Notes {
-  _closest: { [k: string]: NoteID } = {};
   notes: { [k: NoteID]: Note };
 
   constructor() {
@@ -71,10 +68,14 @@ class Notes {
     });
   }
 
+  find(id: NoteID): Note {
+    return this.notes[id];
+  }
+
   closestToFrequency(frequency: NoteFrequency): Note {
     const key = frequency.toFixed(2);
-    if (this._closest[key]) {
-      return this.notes[this._closest[key]];
+    if (NOTES_CLOSEST_MEMO[key]) {
+      return this.notes[NOTES_CLOSEST_MEMO[key]];
     }
     let index = 0;
     while (
@@ -157,7 +158,7 @@ class Notes {
     return [und, "Db", und, "Eb", und, und, "Gb", und, "Ab", und, "Bb", "Cb"];
   }
 
-  static idFromNote({ notation, octave }: Note): string {
+  static idFromNote(notation: NoteNotation, octave: NoteOctave): string {
     return `${notation}${octave}`;
   }
 }
@@ -178,7 +179,7 @@ class Note {
   }
 
   get id(): string {
-    return Notes.idFromNote(this);
+    return Notes.idFromNote(this.notation, this.octave);
   }
 }
 
@@ -187,87 +188,77 @@ interface MusicalScaleParams {
   mode: ScaleMode | ScaleModeVanity;
 }
 
+type RelativeOctave = 0 | 1;
+
+interface Interval {
+  name: string;
+  step: number;
+  notation: NoteNotation;
+  octave: RelativeOctave;
+  triad: Triad;
+}
+
+interface Triad {
+  type: ScaleIntervalTypeID;
+  interval: string;
+  notes: { note: ScaleRoot; octave: RelativeOctave }[];
+}
+
+const notes = new Notes();
+
 export default class MusicalScale {
   root: ScaleRoot;
   mode: ScaleMode | ScaleModeVanity;
+  intervals: Interval[];
 
   constructor(params: MusicalScaleParams) {
     this.root = params.root;
     this.mode = params.mode;
-    this.loadScale(params);
+    this.intervals = [];
+    this.update(params);
   }
 
-  loadScale({ root, mode }: MusicalScaleParams) {
+  get rootOffset(): number {
+    const idx = MusicalScale.ROOTS.indexOf(this.root);
+    if (idx === -1) {
+      return MusicalScale.ROOT_ALTERNATES.indexOf(this.root);
+    } else {
+      return idx;
+    }
+  }
+
+  update({ root, mode }: MusicalScaleParams) {
     this.root = root;
     this.mode = mode;
     const config = MusicalScale.modeConfig(mode);
-    this.notes = [];
-    this.noteNames = [];
-    this.scale = this.library.scales[this.paramMode(this.mode)];
-    this.chordIndexes = {};
 
-    // notes to cycle through
-    const keys = this.library.keys;
-    // starting index for key loop
-    const offset = keys.indexOf(this.key);
-    for (let s = 0; s < this.progression.length; s++) {
-      const index = this.progression[s];
-      const step = this.scale.steps[index];
-      const idx = (offset + step) % keys.length;
+    this.intervals = [];
+
+    for (let index = 0; index < 7; index++) {
+      const step = config.steps[index];
+      const idx = (this.rootOffset + step) % MusicalScale.ROOTS.length;
       // relative octave. 0 = same bb root, 1 = next ocave up
-      const octave = offset + step > keys.length - 1 ? 1 : 0;
+      const octave: RelativeOctave =
+        this.rootOffset + step > MusicalScale.ROOTS.length - 1 ? 1 : 0;
       // generate the relative triads
-      const triad = this.generateTriad(
+      const triad = MusicalScale.buildTriad(
         index,
         idx,
         octave,
-        this.scale.triads[index]
+        config.triads[index]
       );
-      // save the reference to the chord
-      const chordKey = triad.notes
-        .map(({ note }) => note)
-        .sort()
-        .join("");
-      this.chordIndexes[chordKey] = this.notes.length;
-      // define the note
-      const note = {
-        name: `${keys[idx]}${triad.type}`,
+      const notation = Notes.STEP_NOTATIONS[idx];
+      this.intervals.push({
+        name: `${notation}${triad.type}`,
         step: index,
-        note: keys[idx],
+        notation,
         octave,
         triad,
-      };
-      this.noteNames.push(keys[idx]);
-      // add the note
-      this.notes.push(note);
+      });
     }
   }
 
-  // create a chord of notes based on chord type
-  generateTriad(s, offset, octave, t) {
-    // get the steps for this chord type
-    const steps = this.library.triads[t];
-    // instantiate the chord
-    const chord = {
-      type: t,
-      interval: this.intervalFromType(s, t),
-      notes: [],
-    };
-    // load the notes
-    const keys = this.library.keys;
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i];
-      const idx = (offset + step) % keys.length;
-      // relative octave to base
-      const relative = offset + step > keys.length - 1 ? octave + 1 : octave;
-      // define the note
-      chord.notes.push({ note: keys[idx], octave: relative });
-    }
-    return chord;
-  }
-
-  // proper interval notation from the step and type
-  intervalFromType(step: number, type: ScaleIntervalTypeID): string {
+  static intervalFromType(step: number, type: ScaleIntervalTypeID): string {
     const steps = "i ii iii iv v vi vii".split(" ");
     const s = steps[step];
     switch (type) {
@@ -282,6 +273,35 @@ export default class MusicalScale {
     }
   }
 
+  static buildTriad(
+    relativeStep: number,
+    offset: number,
+    octave: RelativeOctave,
+    triadId: ScaleIntervalTypeID
+  ): Triad {
+    // get the steps for this chord type
+    const steps = MusicalScale.triadStepsFromTriad(triadId);
+    // instantiate the chord
+    const triad: Triad = {
+      type: triadId,
+      interval: MusicalScale.intervalFromType(relativeStep, triadId),
+      notes: [],
+    };
+    // load the notes
+    const roots = MusicalScale.ROOTS;
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      const idx = (offset + step) % roots.length;
+      // relative octave to base
+      const relative = (
+        offset + step > roots.length - 1 ? octave + 1 : octave
+      ) as RelativeOctave;
+      // define the note
+      triad.notes.push({ note: roots[idx], octave: relative });
+    }
+    return triad;
+  }
+
   static modeConfig(mode: ScaleMode | ScaleModeVanity): ScaleConfig {
     if (mode === "major") {
       mode = "ionian";
@@ -292,55 +312,55 @@ export default class MusicalScale {
       ionian: {
         key: "ionian",
         name: "Ionian",
-        steps: [2, 2, 1, 2, 2, 2, 1],
+        steps: MusicalScale.stepsFromIncrement([2, 2, 1, 2, 2, 2, 1]),
         triads: MusicalScale.triadsFromOffset(0),
       },
       dorian: {
         key: "dorian",
         name: "Dorian",
-        steps: [2, 1, 2, 2, 2, 1, 2],
+        steps: MusicalScale.stepsFromIncrement([2, 1, 2, 2, 2, 1, 2]),
         triads: MusicalScale.triadsFromOffset(1),
       },
       phrygian: {
         key: "phrygian",
         name: "Phrygian",
-        steps: [1, 2, 2, 2, 1, 2, 2],
+        steps: MusicalScale.stepsFromIncrement([1, 2, 2, 2, 1, 2, 2]),
         triads: MusicalScale.triadsFromOffset(2),
       },
       lydian: {
         key: "lydian",
         name: "Lydian",
-        steps: [2, 2, 2, 1, 2, 2, 1],
+        steps: MusicalScale.stepsFromIncrement([2, 2, 2, 1, 2, 2, 1]),
         triads: MusicalScale.triadsFromOffset(3),
       },
       mixolydian: {
         key: "mixolydian",
         name: "Mixolydian",
-        steps: [2, 2, 1, 2, 2, 1, 2],
+        steps: MusicalScale.stepsFromIncrement([2, 2, 1, 2, 2, 1, 2]),
         triads: MusicalScale.triadsFromOffset(4),
       },
       aeolian: {
         key: "aeolian",
         name: "Aeolian",
-        steps: [2, 1, 2, 2, 1, 2, 2],
+        steps: MusicalScale.stepsFromIncrement([2, 1, 2, 2, 1, 2, 2]),
         triads: MusicalScale.triadsFromOffset(5),
       },
       locrian: {
         key: "locrian",
         name: "Locrian",
-        steps: [1, 2, 2, 1, 2, 2, 2],
+        steps: MusicalScale.stepsFromIncrement([1, 2, 2, 1, 2, 2, 2]),
         triads: MusicalScale.triadsFromOffset(6),
       },
       melodic: {
         key: "melodic",
         name: "Melodic Minor",
-        steps: [2, 1, 2, 2, 2, 2, 1],
+        steps: MusicalScale.stepsFromIncrement([2, 1, 2, 2, 2, 2, 1]),
         triads: MusicalScale.triadsFromOffset(0, "melodic"),
       },
       harmonic: {
         key: "harmonic",
         name: "Harmonic Minor",
-        steps: [2, 1, 2, 2, 1, 3, 1],
+        steps: MusicalScale.stepsFromIncrement([2, 1, 2, 2, 1, 3, 1]),
         triads: MusicalScale.triadsFromOffset(0, "harmonic"),
       },
     };
@@ -349,6 +369,20 @@ export default class MusicalScale {
 
   static get ROOTS(): ScaleRoot[] {
     return Notes.STEP_NOTATIONS;
+  }
+
+  static get ROOT_ALTERNATES(): (ScaleRoot | undefined)[] {
+    return Notes.STEP_NOTATION_ALTERNATES;
+  }
+
+  static stepsFromIncrement(increments: number[]): NoteStep[] {
+    const steps: NoteStep[] = [0];
+    let step = 0;
+    for (let i = 0; i < increments.length - 1; i++) {
+      step += increments[i];
+      steps.push(step as NoteStep);
+    }
+    return steps;
   }
 
   static triadsFromOffset(
@@ -377,84 +411,15 @@ export default class MusicalScale {
     return triads;
   }
 
-  loadLibrary() {
+  static triadStepsFromTriad(id: ScaleIntervalTypeID): number[] {
     return {
-      keys: Notes.STEP_NOTATIONS,
-      scales: {},
-      modes: [
-        "ionian",
-        "dorian",
-        "phrygian",
-        "lydian",
-        "mixolydian",
-        "aeolian",
-        "locrian",
-        "major",
-        "minor",
-        "melodic",
-        "harmonic",
-      ],
-      flatSharp: {
-        Cb: "B",
-        Db: "C#",
-        Eb: "D#",
-        Fb: "E",
-        Gb: "F#",
-        Ab: "G#",
-        Bb: "A#",
-      },
-      triads: {
-        maj: [0, 4, 7],
-        min: [0, 3, 7],
-        dim: [0, 3, 6],
-        aug: [0, 4, 8],
-      },
-    };
-  }
-
-  paramMode(mode) {
-    return {
-      minor: "aeo",
-      major: "ion",
-      ionian: "ion",
-      dorian: "dor",
-      phrygian: "phr",
-      lydian: "lyd",
-      mixolydian: "mix",
-      aeolian: "aeo",
-      locrian: "loc",
-      melodic: "mel",
-      harmonic: "har",
-    }[mode];
-  }
-
-  paramKey(key) {
-    if (this.library.flatSharp[key]) {
-      return this.library.flatSharp[key];
-    }
-    return key;
-  }
-
-  generateSteps(stepsString) {
-    const arr = stepsString.split(" ");
-    const steps = [0];
-    let step = 0;
-    for (let i = 0; i < arr.length - 1; i++) {
-      let inc = 0;
-      switch (arr[i]) {
-        case "W":
-          inc = 2;
-          break;
-        case "H":
-          inc = 1;
-          break;
-        case "WH":
-          inc = 3;
-          break;
-      }
-      step += inc;
-      steps.push(step);
-    }
-    return steps;
+      maj: [0, 4, 7],
+      min: [0, 3, 7],
+      dim: [0, 3, 6],
+      aug: [0, 4, 8],
+    }[id];
   }
 }
+
+const scale = new MusicalScale({ mode: "ionian", root: "C" });
+console.log(JSON.stringify(scale));
