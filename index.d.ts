@@ -1,87 +1,143 @@
-declare type NoteID = string;
-declare type NoteStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
-declare type NoteOctave = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
-declare type NoteFrequency = number;
-declare type NoteNotation = "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B";
-declare type NoteNotationAlternate = "Db" | "Eb" | "Gb" | "Ab" | "Bb" | "Cb" | undefined;
-declare type ScaleMode = "ionian" | "dorian" | "phrygian" | "lydian" | "mixolydian" | "aeolian" | "locrian" | "melodic" | "harmonic";
-interface ScaleConfig {
-    key: ScaleMode;
-    name: string;
-    steps: NoteStep[];
-    triads: ScaleIntervalTypeID[];
-}
-declare type ScaleModeVanity = "major" | "minor";
-declare type ScaleIntervalTypeID = "aug" | "dim" | "maj" | "min";
-declare type ScaleRoot = NoteNotation | Exclude<NoteNotationAlternate, undefined>;
-declare class Notes {
-    private closest;
-    notes: {
-        [k: NoteID]: Note;
-    };
-    constructor();
-    find(id: NoteID): Note;
-    closestToFrequency(frequency: NoteFrequency): Note;
-    static get OCTAVES(): NoteOctave[];
-    static get OCTAVE_STEP_FREQUENCIES(): {
-        [K in NoteOctave]: {
-            [K in NoteStep]: NoteFrequency;
-        };
-    };
-    static get NOTE_IDS(): NoteID[];
-    static get NOTE_FREQUENCIES(): NoteFrequency[];
-    static get STEPS(): NoteStep[];
-    static get STEP_NOTATIONS(): NoteNotation[];
-    static get STEP_NOTATION_ALTERNATES(): NoteNotationAlternate[];
-    static idFromNote(notation: NoteNotation, octave: NoteOctave): string;
-}
-declare class Note {
-    frequency: NoteFrequency;
-    notation: NoteNotation;
-    notationAlternate: NoteNotationAlternate;
-    octave: NoteOctave;
-    step: NoteStep;
-    constructor({ octave, step }: {
-        octave: NoteOctave;
-        step: NoteStep;
-    });
-    get id(): string;
-}
+declare type IntervalName = "Augmented" | "Diminished" | "Major" | "Minor";
+declare type IntervalType = "aug" | "dim" | "maj" | "min";
+declare type Mode = "ionian" | "dorian" | "phrygian" | "lydian" | "mixolydian" | "aeolian" | "locrian" | "melodic" | "harmonic";
+declare type ModeVanity = "major" | "minor";
+declare type Notation = "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B";
+declare type NotationAlternate = "C" | "Db" | "D" | "Eb" | "E" | "F" | "Gb" | "G" | "Ab" | "A" | "Bb" | "B";
 interface MusicalScaleParams {
-    root: ScaleRoot;
-    mode: ScaleMode | ScaleModeVanity;
+    /**
+     * The root of the scale. Can be alternative format (flat instead of sharp).
+     */
+    root: Notation | NotationAlternate;
+    /**
+     * The scale mode, can provide vanity modes (major, minor).
+     */
+    mode: Mode | ModeVanity;
 }
-declare type RelativeOctave = 0 | 1;
-interface Interval {
-    name: string;
+interface IntervalNote {
+    /**
+     * Notation for the note
+     */
+    notation: Notation;
+    /**
+     * Octave relative to the first interval's root octave.
+     * 0 | 1 | 2
+     */
+    octave: number;
+}
+declare type IntervalNotes = IntervalNote[];
+declare class MusicalScaleNote {
+    /**
+     * Frequency hz for this note
+     */
+    frequency: number;
+    /**
+     * A unique identifier for this note
+     */
+    id: string;
+    /**
+     * Global index of the note on a keyboard (
+     * 0 through 107
+     */
+    index: number;
+    /**
+     * Primary notation for the note
+     */
+    notation: Notation;
+    /**
+     * Optional secondary notation for the note
+     */
+    notationAlternate?: NotationAlternate;
+    /**
+     * Global octave number for the note
+     * 0 through 8
+     */
+    octave: number;
+    /**
+     * Index of the note within the octave
+     * 0 through 11
+     */
+    octaveIndex: number;
+    constructor({ octave, step }: {
+        octave: number;
+        step: number;
+    });
+}
+declare class MusicalScaleInterval {
+    /**
+     * Common representation of the interval
+     */
+    label: string;
+    /**
+     * Metadata
+     */
+    meta: {
+        /**
+         * Interval name
+         */
+        name: IntervalName;
+        /**
+         * Interval roman numeral syntax
+         */
+        numeral: string;
+        /**
+         * Interval type
+         */
+        type: IntervalType;
+    };
+    /**
+     * Primary identifier of the interval root note
+     */
+    notation: Notation;
+    /**
+     * Optional secondary identifier of the interval root note
+     */
+    notationAlternate?: NotationAlternate;
+    /**
+     * Interval triad notes
+     */
+    notes: IntervalNotes;
+    /**
+     * Octave relative octave to first interval's root note.
+     * 0 | 1
+     */
+    octave: number;
+    /**
+     * Interval step in the mode
+     * 0 through 6
+     */
     step: number;
-    notation: NoteNotation;
-    octave: RelativeOctave;
-    triad: Triad;
-}
-interface Triad {
-    type: ScaleIntervalTypeID;
-    interval: string;
-    notes: {
-        note: ScaleRoot;
-        octave: RelativeOctave;
-    }[];
+    constructor(step: number, offset: number, type: IntervalType);
 }
 export default class MusicalScale {
-    root: ScaleRoot;
-    mode: ScaleMode | ScaleModeVanity;
-    notes: Notes;
-    intervals: Interval[];
+    /**
+     * Array of 7 intervals in the scale
+     */
+    intervals: MusicalScaleInterval[];
+    /**
+     * Common label for the scale's key.
+     */
+    label: string;
+    /**
+     * Scale's mode. Can be a vanity mode (minor, major)
+     */
+    mode: Mode | ModeVanity;
+    /**
+     * Array of playable note ids in the scale
+     */
+    noteIds: string[];
+    /**
+     * Notation or alternative notation for the root of the scale.
+     */
+    root: Notation | NotationAlternate;
     constructor(params: MusicalScaleParams);
-    get rootOffset(): number;
     update({ root, mode }: MusicalScaleParams): void;
-    static intervalFromType(step: number, type: ScaleIntervalTypeID): string;
-    static buildTriad(relativeStep: number, offset: number, octave: RelativeOctave, triadId: ScaleIntervalTypeID): Triad;
-    static modeConfig(mode: ScaleMode | ScaleModeVanity): ScaleConfig;
-    static get ROOTS(): ScaleRoot[];
-    static get ROOT_ALTERNATES(): (ScaleRoot | undefined)[];
-    static stepsFromIncrement(increments: number[]): NoteStep[];
-    static triadsFromOffset(offset: number, alt?: "melodic" | "harmonic"): ScaleIntervalTypeID[];
-    static triadStepsFromTriad(id: ScaleIntervalTypeID): number[];
+    /**
+     * Array of playable notes in the scale.
+     */
+    get notes(): MusicalScaleNote[];
 }
+export declare const NOTES_LIBRARY: {
+    [k: string]: MusicalScaleNote;
+};
 export {};
