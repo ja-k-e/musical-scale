@@ -1,0 +1,29 @@
+{
+  "name": "musical-scale",
+  "version": "1.0.0",
+  "description": "a musical scale generator",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jakealbaugh/musical-scale.git"
+  },
+  "exports": {
+    ".": {
+      "import": "./index.js"
+    }
+  },
+  "keywords": [],
+  "author": "Jake Albaugh",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jakealbaugh/musical-scale/issues"
+  },
+  "homepage": "https://github.com/jakealbaugh/musical-scale#readme",
+  "devDependencies": {
+    "typescript": "^4.5.4"
+  }
+}
