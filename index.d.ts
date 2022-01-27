@@ -26,6 +26,7 @@ interface IntervalNote {
     octave: number;
 }
 declare type IntervalNotes = IntervalNote[];
+export declare const intervalNotes: (offset: number, octave: number, type: IntervalType) => IntervalNotes;
 declare class MusicalScaleNote {
     /**
      * Frequency hz for this note
@@ -63,7 +64,7 @@ declare class MusicalScaleNote {
         step: number;
     });
 }
-export declare class MusicalScaleInterval {
+declare class MusicalScaleInterval {
     /**
      * Common representation of the interval
      */
@@ -108,7 +109,6 @@ export declare class MusicalScaleInterval {
      */
     step: number;
     constructor(step: number, offset: number, type: IntervalType);
-    static fromNotation(notation: Notation | NotationAlternate, type: IntervalType): MusicalScaleInterval;
 }
 export default class MusicalScale {
     /**
