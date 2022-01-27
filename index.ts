@@ -88,7 +88,7 @@ const intervalNameFromType = (type: IntervalType): IntervalName => {
   }
 };
 
-const intervalNotes = (
+export const intervalNotes = (
   offset: number,
   octave: number,
   type: IntervalType
@@ -279,7 +279,7 @@ class MusicalScaleNote {
   }
 }
 
-export class MusicalScaleInterval {
+class MusicalScaleInterval {
   /**
    * Common representation of the interval
    */
@@ -340,17 +340,6 @@ export class MusicalScaleInterval {
       numeral: intervalNumeralFromType(step, type),
       type,
     };
-  }
-
-  static fromNotation(
-    notation: Notation | NotationAlternate,
-    type: IntervalType
-  ) {
-    let step = STEP_NOTATIONS.indexOf(notation as Notation);
-    if (step === -1) {
-      step = STEP_NOTATION_ALTERNATES.indexOf(notation as NotationAlternate);
-    }
-    return new MusicalScaleInterval(step, 0, type);
   }
 }
 
