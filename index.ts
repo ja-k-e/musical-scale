@@ -279,7 +279,7 @@ class MusicalScaleNote {
   }
 }
 
-class MusicalScaleInterval {
+export class MusicalScaleInterval {
   /**
    * Common representation of the interval
    */
@@ -340,6 +340,17 @@ class MusicalScaleInterval {
       numeral: intervalNumeralFromType(step, type),
       type,
     };
+  }
+
+  static fromNotation(
+    notation: Notation | NotationAlternate,
+    type: IntervalType
+  ) {
+    let step = STEP_NOTATIONS.indexOf(notation as Notation);
+    if (step === -1) {
+      step = STEP_NOTATION_ALTERNATES.indexOf(notation as NotationAlternate);
+    }
+    return new MusicalScaleInterval(step, 0, type);
   }
 }
 

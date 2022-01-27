@@ -205,8 +205,16 @@ var MusicalScaleInterval = /** @class */ (function () {
             type: type,
         };
     }
+    MusicalScaleInterval.fromNotation = function (notation, type) {
+        var step = STEP_NOTATIONS.indexOf(notation);
+        if (step === -1) {
+            step = STEP_NOTATION_ALTERNATES.indexOf(notation);
+        }
+        return new MusicalScaleInterval(step, 0, type);
+    };
     return MusicalScaleInterval;
 }());
+export { MusicalScaleInterval };
 var MusicalScale = /** @class */ (function () {
     function MusicalScale(params) {
         this.root = params.root;

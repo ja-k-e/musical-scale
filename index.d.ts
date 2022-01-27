@@ -63,7 +63,7 @@ declare class MusicalScaleNote {
         step: number;
     });
 }
-declare class MusicalScaleInterval {
+export declare class MusicalScaleInterval {
     /**
      * Common representation of the interval
      */
@@ -108,6 +108,7 @@ declare class MusicalScaleInterval {
      */
     step: number;
     constructor(step: number, offset: number, type: IntervalType);
+    static fromNotation(notation: Notation | NotationAlternate, type: IntervalType): MusicalScaleInterval;
 }
 export default class MusicalScale {
     /**
