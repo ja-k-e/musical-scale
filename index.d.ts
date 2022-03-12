@@ -1,9 +1,17 @@
+declare type ChordType = "maj" | "min" | "maj7" | "min7" | "dom7" | "aug" | "dim";
 declare type IntervalName = "Augmented" | "Diminished" | "Major" | "Minor";
 declare type IntervalType = "aug" | "dim" | "maj" | "min";
 declare type Mode = "ionian" | "dorian" | "phrygian" | "lydian" | "mixolydian" | "aeolian" | "locrian" | "melodic" | "harmonic";
 declare type ModeVanity = "major" | "minor";
 declare type Notation = "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B";
 declare type NotationAlternate = "C" | "Db" | "D" | "Eb" | "E" | "F" | "Gb" | "G" | "Ab" | "A" | "Bb" | "B";
+interface Chord {
+    key: string;
+    label: string;
+    notation: Notation;
+    notes: IntervalNote[];
+    type: ChordType;
+}
 interface MusicalScaleParams {
     /**
      * The root of the scale. Can be alternative format (flat instead of sharp).
@@ -26,6 +34,22 @@ interface IntervalNote {
     octave: number;
 }
 declare type IntervalNotes = IntervalNote[];
+export declare const STEP_NOTATIONS: Notation[];
+export declare const STEP_NOTATION_ALTERNATES: NotationAlternate[];
+export declare const CHORD_TYPES: ChordType[];
+/**
+ * Turns an array of notes into the chords unique id.
+ * @param notes
+ * @returns key for the chord.
+ */
+export declare const chordKeyFromNotes: (notes: IntervalNote[]) => string;
+/**
+ * Builds a chord for a step and ChordType
+ * @param step
+ * @param type
+ * @returns Chord
+ */
+export declare const chordFromStepAndType: (step: number, type: ChordType) => Chord;
 export declare const intervalNotes: (offset: number, octave: number, type: IntervalType) => IntervalNotes;
 declare class MusicalScaleNote {
     /**

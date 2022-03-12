@@ -14,11 +14,69 @@ var OCTAVE_STEP_FREQUENCIES = {
 };
 var STEPS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 // prettier-ignore
-var STEP_NOTATIONS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+export var STEP_NOTATIONS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 // prettier-ignore
-var STEP_NOTATION_ALTERNATES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+export var STEP_NOTATION_ALTERNATES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+// prettier-ignore
+export var CHORD_TYPES = ["maj", "min", "maj7", "min7", "dom7", "aug", "dim"];
 var buildNoteId = function (notation, octave) {
     return "".concat(notation).concat(octave);
+};
+/**
+ * Turns an array of notes into the chords unique id.
+ * @param notes
+ * @returns key for the chord.
+ */
+export var chordKeyFromNotes = function (notes) {
+    return notes
+        .map(function (_a) {
+        var notation = _a.notation;
+        return notation;
+    })
+        .sort()
+        .join("-");
+};
+/**
+ * Builds a chord for a step and ChordType
+ * @param step
+ * @param type
+ * @returns Chord
+ */
+export var chordFromStepAndType = function (step, type) {
+    var typeLabel = {
+        maj: "",
+        min: "m",
+        min7: "m7",
+        maj7: "M7",
+        aug: "+",
+        dim: "°",
+        dom7: "7",
+    }[type];
+    var chordFromNotes = function (notes) {
+        var label = notes[0].notation + typeLabel;
+        var notation = notes[0].notation;
+        var key = chordKeyFromNotes(notes);
+        return { key: key, label: label, notation: notation, type: type, notes: notes };
+    };
+    if (type === "maj7") {
+        var notes = intervalNotes(step, 0, "maj");
+        var indexMin = STEP_NOTATIONS.indexOf(notes[1].notation);
+        var min = intervalNotes(indexMin, notes[1].octave, "min");
+        return chordFromNotes(notes.concat(min[2]));
+    }
+    else if (type === "min7") {
+        var notes = intervalNotes(step, 0, "min");
+        var indexMin = STEP_NOTATIONS.indexOf(notes[1].notation);
+        var min = intervalNotes(indexMin, notes[1].octave, "min");
+        return chordFromNotes(notes.concat(min[2]));
+    }
+    else if (type === "dom7") {
+        var notes = intervalNotes(step, 0, "maj");
+        var indexMin = STEP_NOTATIONS.indexOf(notes[1].notation);
+        var dim = intervalNotes(indexMin, notes[1].octave, "dim");
+        return chordFromNotes(notes.concat(dim[2]));
+    }
+    return chordFromNotes(intervalNotes(step, 0, type));
 };
 var intervalNumeralFromType = function (step, type) {
     var notation = ["i", "ii", "iii", "iv", "v", "vi", "vii"][step];

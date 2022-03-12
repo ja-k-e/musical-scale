@@ -1,3 +1,4 @@
+type ChordType = "maj" | "min" | "maj7" | "min7" | "dom7" | "aug" | "dim";
 type IntervalName = "Augmented" | "Diminished" | "Major" | "Minor";
 type IntervalType = "aug" | "dim" | "maj" | "min";
 // prettier-ignore
@@ -7,6 +8,14 @@ type ModeVanity = "major" | "minor";
 type Notation = "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B";
 // prettier-ignore
 type NotationAlternate = "C" | "Db" | "D" | "Eb" | "E" | "F" | "Gb" | "G" | "Ab" | "A" | "Bb" | "B";
+
+interface Chord {
+  key: string;
+  label: string;
+  notation: Notation;
+  notes: IntervalNote[];
+  type: ChordType;
+}
 
 interface MusicalScaleParams {
   /**
@@ -39,7 +48,7 @@ const OCTAVES: number[] = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 // prettier-ignore
 const OCTAVE_STEP_FREQUENCIES: {
   [K in number]: { [K in number]: number }
-} ={
+} = {
     0: { 0: 16.352, 1: 17.324, 2: 18.354, 3: 19.445, 4: 20.602, 5: 21.827, 6: 23.125, 7: 24.5, 8: 25.957, 9: 27.5, 10: 29.135, 11: 30.868, },
     1: { 0: 32.703, 1: 34.648, 2: 36.708, 3: 38.891, 4: 41.203, 5: 43.654, 6: 46.249, 7: 48.999, 8: 51.913, 9: 55, 10: 58.27, 11: 61.735, },
     2: { 0: 65.406, 1: 69.296, 2: 73.416, 3: 77.782, 4: 82.407, 5: 87.307, 6: 92.499, 7: 97.999, 8: 103.826, 9: 110, 10: 116.541, 11: 123.471,  },
@@ -49,16 +58,70 @@ const OCTAVE_STEP_FREQUENCIES: {
     6: { 0: 1046.502, 1: 1108.731, 2: 1174.659, 3: 1244.508, 4: 1318.51, 5: 1396.913, 6: 1479.978, 7: 1567.982, 8: 1661.219, 9: 1760, 10: 1864.655, 11: 1975.533, },
     7: { 0: 2093.005, 1: 2217.461, 2: 2349.318, 3: 2489.016, 4: 2637.02, 5: 2793.826, 6: 2959.955, 7: 3135.963, 8: 3322.438, 9: 3520, 10: 3729.31, 11: 3951.066, },
     8: { 0: 4186.01, 1: 4434.92, 2: 4698.63, 3: 4978.03, 4: 5274.04, 5: 5587.65, 6: 5919.91, 7: 6271.93, 8: 6644.88, 9: 7040, 10: 7458.62, 11: 7902.13, },
-}
+};
 
 const STEPS: number[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 // prettier-ignore
-const STEP_NOTATIONS: Notation[] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+export const STEP_NOTATIONS: Notation[] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 // prettier-ignore
-const STEP_NOTATION_ALTERNATES: NotationAlternate[] = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+export const STEP_NOTATION_ALTERNATES: NotationAlternate[] = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+// prettier-ignore
+export const CHORD_TYPES: ChordType[] = ["maj", "min", "maj7", "min7", "dom7", "aug", "dim"];
 
 const buildNoteId = (notation: Notation, octave: number): string => {
   return `${notation}${octave}`;
+};
+
+/**
+ * Turns an array of notes into the chords unique id.
+ * @param notes
+ * @returns key for the chord.
+ */
+export const chordKeyFromNotes = (notes: IntervalNote[]): string =>
+  notes
+    .map(({ notation }) => notation)
+    .sort()
+    .join("-");
+
+/**
+ * Builds a chord for a step and ChordType
+ * @param step
+ * @param type
+ * @returns Chord
+ */
+export const chordFromStepAndType = (step: number, type: ChordType): Chord => {
+  const typeLabel = {
+    maj: "",
+    min: "m",
+    min7: "m7",
+    maj7: "M7",
+    aug: "+",
+    dim: "°",
+    dom7: "7",
+  }[type];
+  const chordFromNotes = (notes: IntervalNote[]): Chord => {
+    const label = notes[0].notation + typeLabel;
+    const { notation } = notes[0];
+    const key = chordKeyFromNotes(notes);
+    return { key, label, notation, type, notes };
+  };
+  if (type === "maj7") {
+    const notes = intervalNotes(step, 0, "maj");
+    const indexMin = STEP_NOTATIONS.indexOf(notes[1].notation);
+    const min = intervalNotes(indexMin, notes[1].octave, "min");
+    return chordFromNotes(notes.concat(min[2]));
+  } else if (type === "min7") {
+    const notes = intervalNotes(step, 0, "min");
+    const indexMin = STEP_NOTATIONS.indexOf(notes[1].notation);
+    const min = intervalNotes(indexMin, notes[1].octave, "min");
+    return chordFromNotes(notes.concat(min[2]));
+  } else if (type === "dom7") {
+    const notes = intervalNotes(step, 0, "maj");
+    const indexMin = STEP_NOTATIONS.indexOf(notes[1].notation);
+    const dim = intervalNotes(indexMin, notes[1].octave, "dim");
+    return chordFromNotes(notes.concat(dim[2]));
+  }
+  return chordFromNotes(intervalNotes(step, 0, type));
 };
 
 const intervalNumeralFromType = (step: number, type: IntervalType): string => {
